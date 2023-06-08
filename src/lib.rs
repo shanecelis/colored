@@ -25,6 +25,7 @@
 //!
 #![warn(missing_docs)]
 
+#[cfg(feature = "tty")]
 extern crate atty;
 #[macro_use]
 extern crate lazy_static;
