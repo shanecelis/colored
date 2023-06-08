@@ -53,7 +53,7 @@ pub use style::{Style, Styles};
 /// A string that may have color and/or style applied to it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColoredString {
-    input: String,
+    input: Cow<'static, str>,
     fgcolor: Option<Color>,
     bgcolor: Option<Color>,
     style: style::Style,
@@ -433,7 +433,7 @@ impl ColoredString {
 
     fn escape_inner_reset_sequences(&self) -> Cow<str> {
         if !self.has_colors() || self.is_plain() {
-            return self.input.as_str().into();
+            return self.input.clone();
         }
 
         // TODO: BoyScoutRule
@@ -445,10 +445,11 @@ impl ColoredString {
             .map(|(idx, _)| idx)
             .collect();
         if matches.is_empty() {
-            return self.input.as_str().into();
+            return self.input.clone();
         }
 
-        let mut input = self.input.clone();
+        let mut input_cow = self.input.clone();
+        let input = input_cow.to_mut();
         input.reserve(matches.len() * style.len());
 
         for (idx_in_matches, offset) in matches.into_iter().enumerate() {
@@ -462,14 +463,14 @@ impl ColoredString {
             }
         }
 
-        input.into()
+        input_cow
     }
 }
 
 impl Default for ColoredString {
     fn default() -> Self {
         ColoredString {
-            input: String::default(),
+            input: "".into(),
             fgcolor: None,
             bgcolor: None,
             style: style::CLEAR,
@@ -487,7 +488,8 @@ impl Deref for ColoredString {
 impl<'a> From<&'a str> for ColoredString {
     fn from(s: &'a str) -> Self {
         ColoredString {
-            input: String::from(s),
+            // XXX We'd like to avoid this.
+            input: String::from(s).into(),
             ..ColoredString::default()
         }
     }
@@ -553,7 +555,8 @@ impl<'a> Colorize for &'a str {
     fn color<S: Into<Color>>(self, color: S) -> ColoredString {
         ColoredString {
             fgcolor: Some(color.into()),
-            input: String::from(self),
+            // input: self.into(), BOO XXX
+            input: String::from(self).into(),
             ..ColoredString::default()
         }
     }
@@ -561,14 +564,16 @@ impl<'a> Colorize for &'a str {
     fn on_color<S: Into<Color>>(self, color: S) -> ColoredString {
         ColoredString {
             bgcolor: Some(color.into()),
-            input: String::from(self),
+            // input: self.into(),
+            // XXX: Boo
+            input: String::from(self).into(),
             ..ColoredString::default()
         }
     }
 
     fn clear(self) -> ColoredString {
         ColoredString {
-            input: String::from(self),
+            input: String::from(self).into(),
             style: style::CLEAR,
             ..ColoredString::default()
         }
@@ -608,7 +613,7 @@ impl<'a> Colorize for &'a str {
 impl fmt::Display for ColoredString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if !self.has_colors() || self.is_plain() {
-            return <String as fmt::Display>::fmt(&self.input, f);
+            return <str as fmt::Display>::fmt(&self.input, f);
         }
 
         // XXX: see tests. Useful when nesting colored strings
