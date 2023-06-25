@@ -54,13 +54,14 @@ pub use style::{Style, Styles};
 /// A string that may have color and/or style applied to it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColoredString<'a> {
+    /// The string to be styled.
     pub input: Cow<'a, str>,
     fgcolor: Option<Color>,
     bgcolor: Option<Color>,
     style: style::Style,
 }
 
-/// A collection of colored strings.
+/// A collection of colored strings. It can be used like a `Vec<ColoredString>`.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct ColoredStrings<'a>(pub Vec<ColoredString<'a>>);
 
@@ -78,16 +79,18 @@ impl<'a> DerefMut for ColoredStrings<'a> {
 }
 
 impl<'a> ColoredStrings<'a> {
-    fn new() -> Self {
+    /// Return a new empty ColoredStrings container.
+    pub fn new() -> Self {
         ColoredStrings::default()
     }
 
+    /// Split a ColoredStrings by a character.
     pub fn split(self, pat: char) -> Vec<ColoredStrings<'a>> {
         let mut accum: Vec<ColoredStrings> = Vec::new();
         accum.push(ColoredStrings::default());
         for colored_string in self.0 {
             let mut i = colored_string.split(pat);
-            if let Some(mut first) = i.next() {
+            if let Some(first) = i.next() {
                 accum.last_mut().unwrap().push(first);
             }
             accum.extend(i.map(|s| {
