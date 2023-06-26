@@ -39,7 +39,6 @@ mod color;
 pub mod control;
 mod style;
 
-// use std::str::pattern::Pattern;
 pub use self::customcolors::CustomColor;
 
 /// Custom colors support.
@@ -47,64 +46,17 @@ pub mod customcolors;
 
 pub use color::*;
 
-use std::{borrow::Cow, fmt, ops::Deref, ops::DerefMut};
+use std::{borrow::Cow, fmt, ops::Deref};
 
 pub use style::{Style, Styles};
 
 /// A string that may have color and/or style applied to it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColoredString<'a> {
-    /// The string to be styled.
-    pub input: Cow<'a, str>,
+    input: Cow<'a, str>,
     fgcolor: Option<Color>,
     bgcolor: Option<Color>,
     style: style::Style,
-}
-
-/// A collection of colored strings. It can be used like a `Vec<ColoredString>`.
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct ColoredStrings<'a>(pub Vec<ColoredString<'a>>);
-
-impl<'a> Deref for ColoredStrings<'a> {
-    type Target = Vec<ColoredString<'a>>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> DerefMut for ColoredStrings<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<'a> ColoredStrings<'a> {
-    /// Return a new empty ColoredStrings container.
-    pub fn new() -> Self {
-        ColoredStrings::default()
-    }
-
-    /// Split a ColoredStrings by a character.
-    pub fn split(self, pat: char) -> Vec<ColoredStrings<'a>> {
-        let mut accum: Vec<ColoredStrings> = Vec::new();
-        accum.push(ColoredStrings::default());
-        for colored_string in self.0 {
-            let mut i = colored_string.split(pat);
-            if let Some(first) = i.next() {
-                accum.last_mut().unwrap().push(first);
-            }
-            accum.extend(i.map(|s| {
-                ColoredStrings(vec![s])
-            }));
-        }
-        accum
-    }
-}
-
-impl<'a, T> From<T> for ColoredStrings<'a> where T: Into<Cow<'a, str>> {
-    fn from(item: T) -> Self {
-        Self(vec![item.into().into()])
-    }
 }
 
 /// The trait that enables something to be given color.
@@ -513,25 +465,6 @@ impl<'a> ColoredString<'a> {
 
         input_cow
     }
-
-    // We can use Pattern once it becomes stable.
-    // fn split<P: Pattern<'a>>(&'a self, pat: P) -> impl Iterator<Item = ColoredString<'a>>{
-    fn split(self, pat: char) -> impl Iterator<Item = ColoredString<'a>> {
-        let mut a = None;
-        let mut b = None;
-        if self.input.find(pat).is_none() {
-            a = Some(self);
-        } else {
-            b = Some(self.input.split(pat).map(move |s| ColoredString {
-                input: s.to_owned().into(),
-                fgcolor: self.fgcolor.clone(),
-                bgcolor: self.bgcolor.clone(),
-                style: self.style.clone()
-            }).collect::<Vec<_>>());
-        }
-        // Here's how you coalesce two iterators, only one of which has content.
-        a.into_iter().chain(b.into_iter().flatten())
-    }
 }
 
 impl Default for ColoredString<'static> {
@@ -690,15 +623,6 @@ impl<'a> fmt::Display for ColoredString<'a> {
     }
 }
 
-impl<'a> fmt::Display for ColoredStrings<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for s in &self.0 {
-            s.fmt(f)?
-        }
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -852,7 +776,7 @@ mod tests {
     #[test]
     fn escape_reset_sequence_spec_should_do_nothing_on_string_with_no_reset() {
         let style = ColoredString {
-            input: String::from("hello world !"),
+            input: ("hello world !").into(),
             ..ColoredString::default()
         };
 
